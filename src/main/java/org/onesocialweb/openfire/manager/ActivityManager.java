@@ -46,6 +46,7 @@ import org.onesocialweb.model.atom.AtomFactory;
 import org.onesocialweb.model.atom.AtomLink;
 import org.onesocialweb.model.atom.AtomReplyTo;
 import org.onesocialweb.model.atom.DefaultAtomHelper;
+import org.onesocialweb.model.vcard4.Profile;
 import org.onesocialweb.openfire.OswPlugin;
 import org.onesocialweb.openfire.exception.AccessDeniedException;
 import org.onesocialweb.openfire.handler.activity.PEPActivityHandler;
@@ -114,9 +115,23 @@ public class ActivityManager {
 	public void publishActivity(String userJID, ActivityEntry entry) throws UserNotFoundException {
 		// Overide the actor to avoid spoofing
 		User user = UserManager.getInstance().getUser(new JID(userJID).getNode());
+		Profile profile = ProfileManager.getInstance().getProfile(userJID, userJID);
+		
+		//choice for the name of the actor:
+		//1. the display name of the profile - or
+		//2. the name of the user in Openfire - or
+		//3. the JID
+		String actorName = null;
+		if(profile!=null && profile.getFullName()!=null && profile.getFullName().length()>0)
+			actorName = profile.getFullName();
+		else if(user.getName()!=null && user.getName().length()>0)
+			actorName = user.getName();
+		else 
+			actorName = userJID;
+		
 		ActivityActor actor = activityFactory.actor();
 		actor.setUri(userJID);
-		actor.setName(user.getName());
+		actor.setName(actorName);
 		actor.setEmail(user.getEmail());
 
 		// Persist the activities
@@ -152,9 +167,23 @@ public class ActivityManager {
 		// Overide the actor to avoid spoofing
 	
 		User user = UserManager.getInstance().getUser(new JID(userJID).getNode());
+		Profile profile = ProfileManager.getInstance().getProfile(userJID, userJID);
+		
+		//choice for the name of the actor:
+		//1. the display name of the profile - or
+		//2. the name of the user in Openfire - or
+		//3. the JID
+		String actorName = null;
+		if(profile!=null && profile.getFullName()!=null && profile.getFullName().length()>0)
+			actorName = profile.getFullName();
+		else if(user.getName()!=null && user.getName().length()>0)
+			actorName = user.getName();
+		else 
+			actorName = userJID;
+		
 		ActivityActor actor = activityFactory.actor();
 		actor.setUri(userJID);
-		actor.setName(user.getName());
+		actor.setName(actorName);
 		actor.setEmail(user.getEmail());
 		
 		final EntityManager em = OswPlugin.getEmFactory().createEntityManager();
@@ -194,9 +223,23 @@ public class ActivityManager {
 	public void commentActivity(String userJID, ActivityEntry commentEntry) throws UserNotFoundException, UnauthorizedException {
 		// Overide the actor to avoid spoofing
 		User user = UserManager.getInstance().getUser(new JID(userJID).getNode());
+		Profile profile = ProfileManager.getInstance().getProfile(userJID, userJID);
+		
+		//choice for the name of the actor:
+		//1. the display name of the profile - or
+		//2. the name of the user in Openfire - or
+		//3. the JID
+		String actorName = null;
+		if(profile!=null && profile.getFullName()!=null && profile.getFullName().length()>0)
+			actorName = profile.getFullName();
+		else if(user.getName()!=null && user.getName().length()>0)
+			actorName = user.getName();
+		else 
+			actorName = userJID;
+		
 		ActivityActor actor = activityFactory.actor();
 		actor.setUri(userJID);
-		actor.setName(user.getName());
+		actor.setName(actorName);
 		actor.setEmail(user.getEmail());
 		
 		commentEntry.setActor(actor); 
