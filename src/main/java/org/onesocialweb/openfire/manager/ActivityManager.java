@@ -133,6 +133,8 @@ public class ActivityManager {
 		actor.setUri(userJID);
 		actor.setName(actorName);
 		actor.setEmail(user.getEmail());
+		
+		addMentions(entry);
 
 		// Persist the activities
 		final EntityManager em = OswPlugin.getEmFactory().createEntityManager();
@@ -140,6 +142,7 @@ public class ActivityManager {
 		entry.setId(DefaultAtomHelper.generateId());
 		for (ActivityObject object : entry.getObjects()) {
 			object.setId(DefaultAtomHelper.generateId());
+			
 		}
 		entry.setActor(actor);
 		entry.setPublished(Calendar.getInstance().getTime());
@@ -195,7 +198,12 @@ public class ActivityManager {
 	
 		oldEntry.setActor(actor);
 		oldEntry.setUpdated(Calendar.getInstance().getTime());
+		for (ActivityObject obj: oldEntry.getObjects()){
+			obj.setUpdated(Calendar.getInstance().getTime());
+		}
 		oldEntry.setTitle(entry.getTitle());
+		
+		addMentions(oldEntry);
 		
 		em.getTransaction().begin();
 		em.merge(oldEntry);		
@@ -390,7 +398,13 @@ public class ActivityManager {
 				em.remove(oldMessage);
 		}
 		if (previousActivity != null){
-			message.setReceived(previousActivity.getPublished());
+			// In the case of an update, we check that the incoming message is really from the author of the 
+			// original post, i.e. the only one who has the rights to modify the activity.
+			if (!remoteJID.equalsIgnoreCase(previousActivity.getActor().getUri()))
+				throw new AccessDeniedException("User does not have the rights to modify this activity");
+			//due to popular demand, we will move to the top of the inbox any updated or commented message
+			//message.setReceived(previousActivity.getPublished());
+			message.setReceived(Calendar.getInstance().getTime());
 			em.remove(previousActivity);			
 		}
 		else
@@ -663,14 +677,19 @@ public class ActivityManager {
 		alreadySent.add(fromJID);
 		message.setTo(fromJID);
 		server.getMessageRouter().route(message);	
-						
+		
 		// Send to all subscribers
 		for (Subscription activitySubscription : subscriptions) {
-			String recipientJID = activitySubscription.getSubscriber();			
+			String recipientJID = activitySubscription.getSubscriber();
+			if (!canSee(fromJID, entry, recipientJID)) {
+				continue;
+			}
+		
 			alreadySent.add(recipientJID);						
 			message.setTo(recipientJID);
 			server.getMessageRouter().route(message);	
 		}
+
 		
 		if (entry.hasRecipients()) {
 			for (AtomReplyTo recipient : entry.getRecipients()) {
@@ -721,6 +740,23 @@ public class ActivityManager {
 		
 		return AclManager.canSee(fromJID, rule, viewer);
 		
+	}
+	
+	private void addMentions(ActivityEntry entry){
+		String content= entry.getTitle();
+		List<String> jids= new ArrayList<String> (); 
+		if(content.indexOf("@")>=0) {
+			String[] tokens = content.split("\\s+");
+				for(int i=0; i<tokens.length; i++) {
+					if(tokens[i].startsWith("@")) {						
+						jids.add(tokens[i].substring(1));
+					}
+				}
+		}
+		
+		for (String jid: jids){
+			entry.addRecipient(atomFactory.reply(null, jid, null, null));
+		}
 	}
 
 	/**
