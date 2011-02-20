@@ -611,7 +611,14 @@ public class ActivityManager {
 		if (entry.hasRecipients()) {
 			for (AtomReplyTo recipient : entry.getRecipients()) {
 				//TODO This is dirty, the recipient should be an IRI etc...
-				String recipientJID = recipient.getHref();  
+				String recipientJID = recipient.getHref();
+				//if the JID is not valid, then ignore it...
+				try {
+					JID jid = new JID(recipientJID);
+				}catch (IllegalArgumentException e){
+					continue;
+				}
+				
 				if ((recipientJID==null) || (recipientJID.length()==0) || (recipientJID.contains(";node=urn:xmpp:microblog")))
 					continue;
 				if (!alreadySent.contains(recipientJID) && canSee(fromJID, entry, recipientJID)) {
@@ -754,15 +761,24 @@ public class ActivityManager {
 		if(content.indexOf("@")>=0) {
 			String[] tokens = content.split("\\s+");
 				for(int i=0; i<tokens.length; i++) {
-					if(tokens[i].startsWith("@")) {						
+					if(tokens[i].startsWith("@") && (tokens[i].length()>1)) {						
 						jids.add(tokens[i].substring(1));
 					}
 				}
 		}
 		
 		for (String jid: jids){
-			entry.addRecipient(atomFactory.reply(null, jid, null, null));
+			if ((jid!=null) && (jid.length()!=0) && (!hasRecipient(entry.getRecipients(), jid)))
+				entry.addRecipient(atomFactory.reply(null, jid, null, null));
 		}
+	}
+	
+	private boolean hasRecipient(List<AtomReplyTo> recipients, String jid){
+		for (AtomReplyTo recipient: recipients){
+			if ((recipient.getHref()!=null) && recipient.getHref().equals(jid))
+				return true;
+		}
+		return false;
 	}
 
 	/**
